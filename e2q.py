@@ -35,30 +35,7 @@ def plotChargeDistribution():
     pass
 
 
-def plotElectricFieldIntensity():
-    E = np.linalg.norm(Exy, ord=2, axis=2)
-    plt.pcolor(x, y, E.T, cmap='jet')
-    plt.colorbar()
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title('Field distribution')
-    pass
-
-
-def plotElectricFieldDirection():
-    xi = np.arange(0, 20, 1, dtype='int') * (size[0]-1)//20+(size[0]-1)//40
-    yi = np.arange(0, 20, 1, dtype='int') * (size[1]-1)//20+(size[1]-1)//40
-    xii, yii = np.meshgrid(xi, yi)
-    xa = x[xi]
-    ya = y[yi]
-    E = np.linalg.norm(Exy[xii, yii, :], ord=2, axis=2)
-    dx = Exy[xii, yii, 0]/E
-    dy = Exy[xii, yii, 1]/E
-    plt.quiver(xa, ya, dx, dy)
-    pass
-
-
-# plotElectricFieldIntensity()
-# plotElectricFieldDirection()
+plt.figure(figsize=(5, 4))
+plt.axis('equal')
 plotChargeDistribution()
-plt.show()
+plt.savefig('./e2q.pdf')

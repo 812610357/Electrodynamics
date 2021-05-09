@@ -11,7 +11,7 @@ yMax = 1
 d = np.array([2e-3, 2e-3])
 x = np.arange(xMin, xMax+d[0], d[0])
 y = np.arange(yMin, yMax+d[1], d[1])
-yy, xx = np.meshgrid(x, y).T
+yy, xx = np.meshgrid(x, y)
 size = np.array([len(x), len(y)], dtype='int')
 
 ######## 定义电荷分布 ########
@@ -100,9 +100,10 @@ def conj_grad_method(A, b, x):
         step += 1
         logError = np.log10(np.linalg.norm(r, ord=np.inf))  # 后向误差
         print('step=%d,log(r)=%6f' % (step, logError))
-        if logError < 0: # 误差上限
+        if logError < 0:  # 误差上限
             break
     return x
+
 
 ######## 组装求解矩阵 ########
 sizeA = size[0]*size[1]
@@ -118,7 +119,7 @@ topBoundary(0)
 ######## 解线性方程组 ########
 phi = np.zeros((sizeA, 1))  # 初始预测解
 phi = conj_grad_method(A, b, phi)
-phi = np.reshape(phi, (size[0], size[1])) # 重整回二维空间
+phi = np.reshape(phi, (size[0], size[1]))  # 重整回二维空间
 
 ######## 三点差分-计算梯度 ########
 Ex = (phi[2:, 1:-1]-phi[:-2, 1:-1])/2/d[0]
@@ -126,7 +127,7 @@ Ey = (phi[1:-1, 2:]-phi[1:-1, :-2])/2/d[1]
 Exy = -np.stack((Ex, Ey), axis=2)
 
 ######## 电场的可视化 ########
-print('耗时%6fs'%(time.time()-t))
+print('耗时%6fs' % (time.time()-t))
 
 
 def plotElectricPotential():
@@ -176,4 +177,4 @@ plt.subplot(1, 2, 2)
 plt.axis('equal')
 plotElectricFieldIntensity()
 plotElectricFieldDirection()
-plt.show()
+plt.savefig('./q2e.pdf')
