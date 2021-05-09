@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from matplotlib.colors import LogNorm
 from scipy import sparse
+from scipy.sparse.linalg.dsolve import spsolve
 import time
 
 ######## 定义求解区域 ########
@@ -10,7 +11,7 @@ xMin = -1
 xMax = 1
 yMin = -1
 yMax = 1
-d = np.array([1e-3, 1e-3])
+d = np.array([2e-2, 2e-2])
 epsilon0 = 8.85418e-12
 x = np.arange(xMin, xMax+d[0], d[0])
 y = np.arange(yMin, yMax+d[1], d[1])
@@ -19,14 +20,14 @@ size = np.array([len(x), len(y)], dtype='int')
 ######## 定义电荷分布 ########
 rho = np.zeros((size[0], size[1]))
 '''
-rho[(size[0]-1)//2-100, (size[1]-1)//2] = 1
-rho[(size[0]-1)//2+100, (size[1]-1)//2] = -1
+rho[(size[0]-1)//2-20, (size[1]-1)//2] = 1
+rho[(size[0]-1)//2+20, (size[1]-1)//2] = 1
 '''
 '''
 rho[(size[0]-1)//2-5:(size[0]-1)//2+6, (size[1]-1)//2-5:(size[0]-1)//2+6]=np.ones((11,11))
 '''
 
-rho[(size[0]-1)//2-200:(size[0]-1)//2+201, (size[1]-1)//2] = np.ones((401))
+rho[(size[0]-1)//2-20:(size[0]-1)//2+21, (size[1]-1)//2] = np.ones((41))
 
 ######## 定义边界条件 ########
 boundary = np.zeros((size[0], size[1]))
@@ -59,27 +60,41 @@ print(step)
 t = time.time()
 
 
-def coefficientMatrix():
+def zeroCoefficientMatrix():
     #### 主对角线 ####
     C = np.ones(sizeA)*-2*(1/d[0]**2+1/d[1]**2)
     #### x方向差分 ####
     Dx = np.ones(sizeA-1)/d[0]**2
-    #Dx[np.arange(1, size[0], 1, dtype='int')*size[0]-1] = 0
+    Dx[np.arange(1, size[0], 1, dtype='int')*size[0]-1] = 0
     #Dx[:size[0]] = 0
     #Dx[-size[0]:] = 0
     #### y方向差分 ####
     Dy = np.ones(sizeA-size[0])/d[1]**2
-    Dy[np.arange(0, size[1]-1, 1, dtype='int')*size[0]] = 0
-    Dy[np.arange(1, size[1], 1, dtype='int')*size[0]-1] = 0
+    #Dy[np.arange(0, size[1]-1, 1, dtype='int')*size[0]] = 0
+    #Dy[np.arange(1, size[1], 1, dtype='int')*size[0]-1] = 0
     A = sparse.diags([C, Dx, Dx, Dy, Dy], [0, 1, -1, size[0], -size[0]])
     return A
+
+
+def leftBoundary(phi):
+    b[:size[0]] = phi
+    A.data[0, :size[0]] = 1
+    A.data[[1, 2, 3], :size[0]] = 0
+    pass
+
+
+def rightBoundary(phi):
+    b[-size[0]:] = phi
+    A.data[0, -size[0]:] = 1
+    A.data[[1, 2, 4], -size[0]:] = 0
+    pass
 
 
 def conj_grad_method(A, b, x):
     r = b - sparse.dia_matrix.dot(A, x)
     d = r
     step = 0
-    for i in range(size[0]):
+    for i in range(size[0]*size[1]):
         Ad = sparse.dia_matrix.dot(A, d)
         alpha = np.dot(r.T, r) / np.dot(d.T, Ad)
         x = x + alpha*d
@@ -87,19 +102,25 @@ def conj_grad_method(A, b, x):
         r = r - alpha*Ad
         d = r + beta*d
         step += 1
-        print('step=%d,r=%e' % (step, np.max(np.abs(r))))
-        if np.max(r) < 1e-162:
+        logr = np.log10(np.linalg.norm(r))
+        print('step=%d,log(r)=%6f' % (step, logr))
+        if logr < -161:
             break
     return x
 
 
 sizeA = size[0]*size[1]
-A = coefficientMatrix()
+A = zeroCoefficientMatrix()
 b = np.reshape(-rho/epsilon0, (sizeA, 1))
+leftBoundary(100)
+rightBoundary(0)
 x0 = np.zeros((sizeA, 1))
-r = conj_grad_method(A, b, x0)
-#r = spsolve(A, b)
+#r = conj_grad_method(A, b, x0)
+r = spsolve(A, b)
 phi = np.reshape(r, (size[0], size[1]))
+plt.pcolor(x, y, phi.T, cmap='jet', norm=LogNorm())
+plt.colorbar().set_label('phi')
+plt.show()
 print('共轭梯度', time.time()-t)
 
 ######## 计算电场强度 ########
@@ -112,8 +133,11 @@ Exy = -np.stack((Ex, Ey), axis=2)
 
 def plotElectricFieldIntensity(Exy):
     E = np.linalg.norm(Exy, ord=2, axis=2)
+    E[(E.shape[0]-1)//2-20:(E.shape[0]-1)//2+21, (E.shape[0]-1)//2] = np.ones((41))*np.NaN
     plt.pcolor(x[1:-1], y[1:-1], E.T, cmap='jet', norm=LogNorm())
-    plt.colorbar()
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.colorbar().set_label('|E|')
     pass
 
 
@@ -134,3 +158,4 @@ plt.axis('equal')
 plotElectricFieldIntensity(Exy)
 plotElectricFieldDirection(Exy)
 plt.show()
+plt.savefig('./3.pdf')
