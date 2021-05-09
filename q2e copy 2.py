@@ -9,22 +9,32 @@ xMax = 1
 yMin = -1
 yMax = 1
 d = np.array([2e-3, 2e-3])
+epsilon0 = 8.85418e-12
 x = np.arange(xMin, xMax+d[0], d[0])
 y = np.arange(yMin, yMax+d[1], d[1])
-yy, xx = np.meshgrid(x, y).T
+xx, yy = np.meshgrid(x, y)
 size = np.array([len(x), len(y)], dtype='int')
 
 ######## 定义电荷分布 ########
-epsilon0 = 8.85418e-12
-rho = 2*np.pi**2*np.sin(np.pi*xx)*np.sin(np.pi*yy)
-
+rho = np.zeros((size[0], size[1]))
+rho = -2*np.pi**2*np.sin(np.pi*xx)*np.sin(np.pi*yy)
+'''
+rho[(size[0]-1)//2-20, (size[1]-1)//2] = 1
+rho[(size[0]-1)//2+20, (size[1]-1)//2] = -1
+'''
+'''
+rho[(size[0]-1)//2-5:(size[0]-1)//2+6, (size[1]-1)//2-5:(size[0]-1)//2+6]=np.ones((11,11))
+'''
+'''
+rho[(size[0]-1)//2-20:(size[0]-1)//2+21, (size[1]-1)//2] = np.ones((41))
+'''
 ######## 五点差分-共轭梯度-求解拉普拉斯方程 ########
 t = time.time()
 
 
-def coefficientMatrix():
+def zeroCoefficientMatrix():
     '''
-    根据五点差分法，使用稀疏矩阵，初始化系数矩阵，展平到一维空间
+    初始化系数矩阵
     '''
     #### 主对角线 ####
     C = np.ones(sizeA)*-2*(1/d[0]**2+1/d[1]**2)
@@ -90,7 +100,7 @@ def conj_grad_method(A, b, x):
     r = b - sparse.dia_matrix.dot(A, x)
     d = r
     step = 0
-    while step < size[0]*size[1]:
+    while step<size[0]*size[1]:
         Ad = sparse.dia_matrix.dot(A, d)
         alpha = np.dot(r.T, r) / np.dot(d.T, Ad)
         x = x + alpha*d
@@ -98,15 +108,15 @@ def conj_grad_method(A, b, x):
         r = r - alpha*Ad
         d = r + beta*d
         step += 1
-        logError = np.log10(np.linalg.norm(r, ord=np.inf))  # 后向误差
+        logError = np.log10(np.linalg.norm(r, ord=np.inf)) #后向误差
         print('step=%d,log(r)=%6f' % (step, logError))
-        if logError < 0: # 误差上限
+        if logError < -3:
             break
     return x
 
-######## 组装求解矩阵 ########
+
 sizeA = size[0]*size[1]
-A = coefficientMatrix()
+A = zeroCoefficientMatrix()
 b = np.reshape(-rho/epsilon0, (sizeA, 1))
 
 ######## 定义边界条件 ########
@@ -114,21 +124,19 @@ leftBoundary(0)
 rightBoundary(0)
 bottomBoundary(0)
 topBoundary(0)
+x0 = np.zeros((sizeA, 1))
+r = conj_grad_method(A, b, x0)
+#r = spsolve(A, b)
+phi = np.reshape(r, (size[0], size[1]))
 
-######## 解线性方程组 ########
-phi = np.zeros((sizeA, 1))  # 初始预测解
-phi = conj_grad_method(A, b, phi)
-phi = np.reshape(phi, (size[0], size[1])) # 重整回二维空间
+print('共轭梯度', time.time()-t)
 
-######## 三点差分-计算梯度 ########
+######## 计算电场强度 ########
 Ex = (phi[2:, 1:-1]-phi[:-2, 1:-1])/2/d[0]
 Ey = (phi[1:-1, 2:]-phi[1:-1, :-2])/2/d[1]
 Exy = -np.stack((Ex, Ey), axis=2)
 
 ######## 电场的可视化 ########
-print('耗时%6fs'%(time.time()-t))
-
-
 def plotElectricPotential():
     plt.pcolor(x, y, phi.T, cmap='jet')
     plt.colorbar()
@@ -137,12 +145,10 @@ def plotElectricPotential():
     plt.title('Potential distribution')
     pass
 
-
 def plotEquipotentialSurface():
-    plt.contour(x, y, phi.T, 10, colors='k',
+    plt.contour(x, y, phi, 10, colors='k',
                 linestyles='dashed', linewidths=0.5)
     pass
-
 
 def plotElectricFieldIntensity():
     E = np.linalg.norm(Exy, ord=2, axis=2)
@@ -150,7 +156,7 @@ def plotElectricFieldIntensity():
     plt.colorbar()
     plt.xlabel('X')
     plt.ylabel('Y')
-    plt.title('Field distribution')
+    plt.title('field distribution')
     pass
 
 
@@ -167,7 +173,7 @@ def plotElectricFieldDirection():
     pass
 
 
-plt.figure(figsize=(11, 4))
+plt.figure(figsize=(12, 4))
 plt.subplot(1, 2, 1)
 plt.axis('equal')
 plotElectricPotential()
