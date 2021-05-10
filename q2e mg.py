@@ -8,11 +8,11 @@ xMin = -1
 xMax = 1
 yMin = -1
 yMax = 1
-d = np.array([1e-3, 1e-3])
-x = np.arange(xMin, xMax+d[0], d[0])
-y = np.arange(yMin, yMax+d[1], d[1])
-yy, xx = np.meshgrid(x, y)
-size = np.array([len(x), len(y)], dtype='int')
+d = np.array([1e-3, 2e-3])  # [y,x]
+x = np.arange(xMin, xMax+d[1], d[1])
+y = np.arange(yMin, yMax+d[0], d[0])
+xx, yy = np.meshgrid(x, y)
+size = np.array([len(y), len(x)], dtype='int')
 
 ######## 定义电荷分布 ########
 epsilon0 = 8.85418e-12
@@ -128,21 +128,21 @@ def smoothing(phi, rho, d, iterError):
 
 
 def restriction(res):
-    xi = np.arange(0, res.shape[0]+1, 2, dtype='int')
-    yi = np.arange(0, res.shape[1]+1, 2, dtype='int')
+    xi = np.arange(0, res.shape[1]+1, 2, dtype='int')
+    yi = np.arange(0, res.shape[0]+1, 2, dtype='int')
     xii, yii = np.meshgrid(xi, yi)
     rhs = np.zeros(((res.shape[0]-1)/2+1, (res.shape[1]-1)/2+1))
 
     ######## 限制非边界区域 ########
     xiic = xii[1:-1, 1:-1]
     yiic = yii[1:-1, 1:-1]
-    rhs[1:-1, 1:-1] = (4*res[xiic, yiic]+2*(res[xiic-1, yiic]+res[xiic+1, yiic]+res[xiic, yiic-1]+res[xiic, yiic+1]) + (
-        res[xiic-1, yiic-1]+res[xiic-1, yiic+1] + res[xiic+1, yiic+1]+res[xiic+1, yiic-1]))/16
+    rhs[1:-1, 1:-1] = (4*res[xiic, yiic]+2*(res[xiic-1, yiic]+res[xiic+1, yiic]+res[xiic, yiic-1]+res[xiic, yiic+1]) +
+                       res[xiic-1, yiic-1]+res[xiic-1, yiic+1] + res[xiic+1, yiic+1]+res[xiic+1, yiic-1])/16
 
     ######## 限制左边界区域 ########
-    rhs[0,xi]
+    rhs[1:-1, 0] = (4*res[yiic, 0]+2*(res[yiic-1, 0]+res[yiic+1,0]+res[yiic, 1])+res[yiic+1, 1]+res[yiic-1, 1])/12
     ######## 限制右边界区域 ########
-
+    rhs[1:-1, -1] = (4*res[yiic, -1]+2*(res[yiic-1, -1]+res[yiic+1,-1]+res[yiic, -2])+res[yiic+1, -2]+res[yiic-1, -2])/12
     ######## 限制下边界区域 ########
 
     ######## 限制上边界区域 ########
