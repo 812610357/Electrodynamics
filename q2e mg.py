@@ -1,7 +1,8 @@
+import time
+
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import sparse
-import time
+from scipy import interpolate, sparse
 
 ######## 定义求解区域 ########
 postIterError = 1
@@ -15,7 +16,6 @@ d = np.array([1e-3, 1e-3])  # [y,x]
 x = np.arange(xMin, xMax+d[1], d[1])
 y = np.arange(yMin, yMax+d[0], d[0])
 xx, yy = np.meshgrid(x, y)
-size = np.array([len(y), len(x)], dtype='int')
 
 ######## 定义电荷分布 ########
 epsilon0 = 8.85418e-12
@@ -25,10 +25,11 @@ rho = 2*np.pi**2*np.sin(np.pi*xx)*np.sin(np.pi*yy)
 t = time.time()
 
 
-def smoothing(phi, f, d,pre=False):
+def smoothing(phi, f, d, pre=False):
     '''
     平滑算子，共轭梯度迭代，返回迭代结果和剩余误差
     '''
+    size = np.array(f.shape, dtype='int')
     def coefficientMatrix():
         '''
         展平到一维空间，根据五点差分法，使用稀疏矩阵，初始化系数矩阵
@@ -103,8 +104,8 @@ def smoothing(phi, f, d,pre=False):
             Error = np.linalg.norm(r, ord=np.inf)  # 后向误差
             print('VMGstep=%d,CGMstep=%d,log(r)=%6f' %
                   (VMGstep, CGMstep, np.log10(Error)))
-            if pre and CGMstep>preIterTimes: # 预迭代次数上限
-                break     
+            if pre and CGMstep >= preIterTimes:  # 预迭代次数上限
+                break
             if Error < postIterError:  # 误差上限
                 break
         return x
@@ -158,20 +159,23 @@ def VCycleMultiGrid(phi, f, d):
     '''
     V循环多重网格法主程序
     '''
-    phi, res = smoothing(phi, f, d)  # 预平滑
+    global VMGstep
+    phi, res = smoothing(phi, f, d, pre=True)  # 预平滑
     rhs = restriction(res)
     eps = np.zeros_like(rhs)
-    if VMGstep < mainIterTimes:
+    VMGstep += 1
+    if VMGstep <= mainIterTimes:
         VCycleMultiGrid(eps, rhs, 2*d)
     else:
-        eps = smoothing(eps, rhs, 2*d)[0] # 到达最大主迭代次数
+        eps = smoothing(eps, rhs, 2*d, pre=True)[0]  # 到达最大主迭代次数
 
-    phi = smoothing(phi, f, d)
+    phi = smoothing(phi, f, d)  # 后平滑
+    VMGstep -= 1
     return phi
 
 
 VMGstep = 1
-phi = np.zeros((size[0], size[1]))  # 等号左侧自变量的预测
+phi = np.zeros((len(y), len(x)))  # 等号左侧自变量的预测
 f = -rho/epsilon0                   # 等号右侧的函数表达式
 phi = VCycleMultiGrid(phi, f, d)
 
@@ -210,8 +214,8 @@ def plotElectricFieldIntensity():
 
 
 def plotElectricFieldDirection():
-    xi = np.arange(0, 20, 1, dtype='int') * (size[1]-1)//20+(size[1]-1)//40
-    yi = np.arange(0, 20, 1, dtype='int') * (size[0]-1)//20+(size[0]-1)//40
+    xi = np.arange(0, 20, 1, dtype='int') * (len(x)-1)//20+(len(x)-1)//40
+    yi = np.arange(0, 20, 1, dtype='int') * (len(y)-1)//20+(len(y)-1)//40
     xii, yii = np.meshgrid(xi, yi)
     xa = x[xi]
     ya = y[yi]
