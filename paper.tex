@@ -61,15 +61,13 @@
 \bibliographystyle{gbt7714-numerical} %设置参考文献样式
 
 \title{电动力学数值实验报告} %设置标题
-\author{欧纪阳 2019141220016} %设置作者
+\author{欧纪阳 2019141220016\\ \textit{College of Physics, Sichuan University, Chengdu 610064, China}} %设置作者
 \date{\today} %设置日期
 
 \begin{document}
 \maketitle %插入标题
 \begin{abstract} %插入摘要和关键字
-    \quad 本文报告了一种在二维空间中求解泊松方程的一类边值问题的方法——多重网格-五点差分-共轭梯度法，该算法为有限差分法的改进方法，利用五点差分法作为数值微分近似，构建对角线稀疏矩阵，以共轭梯度方法为线性系统求解器，采用V循环多重网格方法加速迭代。本文还展示了用Python求解在有限矩形区域内给定电荷分布，并已知电势的边值的条件下的，该区域内的电势和电场分布。相较于高斯-赛德尔、过松弛迭代等求解算法，其收敛速度更快，精度更高。在复杂的边值条件下，与普通网格下的共轭梯度迭代相比，可快速降低误差。
-
-    \textbf{关键词：}多重网格法 \quad 共轭梯度法 \quad 稀疏矩阵 \quad 泊松方程 \quad 边值问题 \quad Python
+    \quad 本文报告了电荷电场之间相互计算的数值方法，以及推导单带电粒子在空间中运动的数值方法。利用迭代求解有限空间中的泊松方程，可以在给定的电荷分布和边界条件下求解电势与电场分布。对于电场推导电荷的方法为根据电场的散度为电荷分布，直接对利用三点中心差分法替代梯度算符，即可获得电荷分布。在单粒子在电磁场中运动的问题中，对时间进行积分，使用梯形法则的数值办法，即可轻松获得粒子的运动轨迹。本文所有的代码均采用Python进行编写。
 \end{abstract}
 
 \tableofcontents %插入目录
@@ -113,6 +111,7 @@ rho = rho1+rho2
 \end{lstlisting}
 
 \section{结果}
+\subsection{正余弦分布电场}
 给予电场一正余弦分布，
 \begin{align}
     E=-\pi\cos(\pi x)\sin(\pi y)\vec{e_x}+\pi\sin(\pi x)\cos(\pi y)\vec{e_y}
@@ -130,6 +129,21 @@ rho = rho1+rho2
     \qquad 左图为数值计算结果，第一象限与第三象限分别有一个波峰，波谷存在于第二和第四象限内；右图为与解析解对照的前向误差图，用灰度表示误差的大小，颜色约浅表示误差越大，衍射越深表示误差越小。
     \caption{正余弦电场分布的数值计算结果及误差图}
     \label{F1}
+\end{figure}
+
+\subsection{点电荷对应的电场分布}
+已知点电荷在真空中所产生的电场的表达式为,
+\begin{align}
+    \vec{E}=\frac{Q \vec{r}}{4\pi \epsilon r^3}=(\frac{Qx}{4\pi \epsilon r^3},\frac{Qy}{4\pi \epsilon r^3})
+\end{align}
+利用该方法对该电场分布进行求解，设置求解区域为$S=\left\{(x,y)|-0.9995\leq x\leq 0.9995,-0.9995\leq y\leq 0.9995\right\}$的正方形区域，在两个维度上的网格精度均为$10^{-3}$，这样设置求解区域的原因是为了避免网格落在原点上，导致原点附近无法求解，求解得到的电荷分布如图\ref{F1.1}所示。可以看到电荷密度几乎完全分布在原点附近，但是其他区域的计算结果中依然还是出现了数量级较小的电荷分布，是由于方法本身的系统误差所造成的，在局部放大的图像中，可以看到原点位置的电荷密度非常高，原点附近电荷密度变化幅度巨大。
+\begin{figure}
+    \begin{center}
+        \includegraphics[width=17cm]{s.png}
+    \end{center}
+    \qquad 左图为点电荷对应的电场分布所求解得到的数值实验结果，右图为原点附近$\left\{(x,y)|-0.02\leq x\leq 0.02,-0.02\leq y\leq 0.02\right\}$的放大图。
+    \caption{数值计算的点电荷分布}
+    \label{F1.1}
 \end{figure}
 
 \part{单粒子在均匀电磁场中的运动}
@@ -179,11 +193,11 @@ rho = rho1+rho2
 \section{结果}
 
 \subsection{静磁场}
-首先考虑只存在静磁场，不存在静电场的情况，令$B=(0,0,1),r_0=(-1,0,0),v_0=(0,1,0)$，时间步长$\mathrm{d}t=10^-3$，时长$T=2\pi$，进行数值求解，粒子的运动轨迹如图\ref{F2}所示，可以看到粒子在绕坐标原点做圆周运动，该问题具有解析解，
+首先考虑只存在静磁场，不存在静电场的情况，令$Q=1,m=1,B=(0,0,1),r_0=(-1,0,0),v_0=(0,1,0)$，时间步长$\mathrm{d}t=10^-3$，时长$T=2\pi$，进行数值求解，粒子的运动轨迹如图\ref{F2}(a)所示，可以看到粒子在绕坐标原点做圆周运动，该问题具有解析解，
 \begin{align}
-    \vec{r}=(-\cost,\sint)
+    \vec{r}=(-\cos t,\sin t)
 \end{align}
-用数值求解
+用数值计算与解析解进行比较，画出求解的误差曲线如图\ref{F2}(b)所示，可以看到误差随着迭代的时间而变大，且误差小于两个数量级。如果继续延长求解的时间达到$T=20\pi$，求解的粒子运动轨迹如图\ref{F2}(c)所示，可以明显的看到粒子的运动轨迹向内偏移，其求解误差曲线如图\ref{F2}(d)所示，由于时间的延长，误差在没有修正的情况下继续增大，已经达到了两个数量级，这主要是由于在迭代过程中省略了三阶小量所造成的。
 \begin{figure}
     \subfigure[$2\pi$时间内粒子的运动轨迹]{\includegraphics[width=8.2cm]{B1.pdf}}
     \subfigure[$2\pi$时间内的数值计算误差]{\includegraphics[width=8.2cm]{B1e.pdf}}
@@ -193,4 +207,27 @@ rho = rho1+rho2
     \caption{只存在磁场时的数值计算结果}
     \label{F2}
 \end{figure}
+
+\subsection{静电磁场}
+在同时存在静电场与静磁场的情况下，一般不存在解析解的情况，一些特例除外（例如电场与磁场方向相同，洛伦兹力与电场力刚好抵消等），下面的几幅图（\ref{F2.1}）展现了几种电磁场分布下的同一带电粒子（$Q=1,m=1$）的运动轨迹（初始位置均为$r_0=(0,0,0)$）：
+\begin{itemize}
+    \item (a)$E=(0,0,1),B=(0,1,0),v_0=(1,0,0)$
+    \item (b)$E=(1,0,0),B=(0,1,0),v_0=(0,1,0)$
+    \item (c)$E=(0,0,1),B=(0,0,1),v_0=(1,0,0)$
+    \item (d)$E=(0,0,1),B=(0,1,1),v_0=(1,0,0)$
+\end{itemize}
+
+\section{附录}
+本文的所有代码已经公开发布于GitHub上\url{https://github.com/812610357/Electrodynamics}，欢迎访问我的数据库标星收藏跟随关注。
+
+\begin{figure}
+    \subfigure[]{\includegraphics[width=8.2cm]{EB1.pdf}}
+    \subfigure[]{\includegraphics[width=8.2cm]{EB2.pdf}}
+    \\
+    \subfigure[]{\includegraphics[width=8.2cm]{EB3.pdf}}
+    \subfigure[]{\includegraphics[width=8.2cm]{EB4.pdf}}
+    \caption{列举几种粒子的运动轨迹}
+    \label{F2.1}
+\end{figure}
+
 \end{document}
