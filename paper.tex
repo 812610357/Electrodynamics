@@ -1,0 +1,196 @@
+%!BIB program=biber
+
+\documentclass{article} %类型为文章
+\usepackage[UTF8]{ctex} %中文编码宏
+\usepackage[hidelinks]{hyperref} %超链接宏
+\usepackage{geometry} %页面控制宏
+\usepackage{fancyhdr} %页眉页脚宏
+\usepackage{lastpage} %总计页的宏
+\usepackage{color} %颜色控制宏
+\usepackage{graphicx} %图片插入宏
+\usepackage{subfigure} %子图插入宏
+\usepackage{diagbox} %表格斜线宏
+\usepackage{multirow} %纵向合并宏
+\usepackage{makecell} %表格换行宏
+\usepackage{amsmath} %公式插入宏
+\usepackage{cases}
+\usepackage{unicode-math} %公式样式宏
+\usepackage{algorithm2e} %伪代码宏
+\usepackage{gbt7714} %国标引用宏
+\usepackage{url} %网页链接宏
+\usepackage{doi} %doi号宏
+\renewcommand{\vec}[1]{\boldsymbol{#1}} %设置向量样式
+
+\usepackage{listings}
+\usepackage{color}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+\lstset{frame=tb,
+  language=Python,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=left,%设置行号位置none不显示行号
+  %numberstyle=\tiny\courier, %设置行号大小
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  escapeinside=``,%逃逸字符(1左面的键)，用于显示中文例如在代码中`中文...`
+  tabsize=4,
+  extendedchars=false %解决代码跨页时，章节标题，页眉等汉字不显示的问题
+}
+
+\geometry{a4paper,left=2cm,right=2cm,top=2cm,bottom=2cm,headsep=0.5cm,footskip=1cm} %设置页边距和页眉页脚距离
+\pagestyle{fancy} %设置页面样式
+\fancyhf{} %开启页眉页脚
+\lhead{欧纪阳 2019141220016} %设置左侧页眉为作者
+\rhead{Sichuan University 四川大学} %设置右侧页眉为机构
+\cfoot{第\thepage 页 \quad 共 \pageref{LastPage} 页} %设置居中页脚为页码
+
+\linespread{1.2} %行距
+\setlength{\parskip}{0.5em} %段落间距
+\setlength{\parindent}{2em} %缩进距离
+
+\setmathfont{Cambria Math} %设置数学公式样式
+\bibliographystyle{gbt7714-numerical} %设置参考文献样式
+
+\title{电动力学数值实验报告} %设置标题
+\author{欧纪阳 2019141220016} %设置作者
+\date{\today} %设置日期
+
+\begin{document}
+\maketitle %插入标题
+\begin{abstract} %插入摘要和关键字
+    \quad 本文报告了一种在二维空间中求解泊松方程的一类边值问题的方法——多重网格-五点差分-共轭梯度法，该算法为有限差分法的改进方法，利用五点差分法作为数值微分近似，构建对角线稀疏矩阵，以共轭梯度方法为线性系统求解器，采用V循环多重网格方法加速迭代。本文还展示了用Python求解在有限矩形区域内给定电荷分布，并已知电势的边值的条件下的，该区域内的电势和电场分布。相较于高斯-赛德尔、过松弛迭代等求解算法，其收敛速度更快，精度更高。在复杂的边值条件下，与普通网格下的共轭梯度迭代相比，可快速降低误差。
+
+    \textbf{关键词：}多重网格法 \quad 共轭梯度法 \quad 稀疏矩阵 \quad 泊松方程 \quad 边值问题 \quad Python
+\end{abstract}
+
+\tableofcontents %插入目录
+\thispagestyle{empty} %本页无页眉页码
+
+\newpage
+
+\part{电荷计算电场}
+该部分内容较长，另附文章《多重网格-五点差分-共轭梯度法——求解二维泊松方程的一类边值问题：从电荷分布求解电场的数值方法》
+
+\part{电场计算电荷}
+
+\section{方法}
+对于一个三阶可微函数$f(x)$，根据泰勒定理有，
+\begin{align}
+    f(x+h) & =f(x)+hf'(x)+\frac{h^2}{2}f''(x)+\frac{h^3}{6}f^{(3)}(c_1) \\
+    f(x-h) & =f(x)-hf'(x)+\frac{h^2}{2}f''(x)-\frac{h^3}{6}f^{(3)}(c_2)
+\end{align}
+其中$x-h<c_2<x<c_1<x+h$，最后一项为误差项，两式相减可以得到\textbf{一阶导数的三点中心差分公式}，
+\begin{align}
+    f'(x)=\frac{f(x+h)-f(x-h)}{2h}-\frac{h^2}{6}f^{(3)}(c)=\frac{f(x+h)-f(x-h)}{2h}+O(x^3)
+\end{align}
+用该公式在离散情况下对$\vec{E}=-\nabla \varphi$做近似可得，
+\begin{align}
+    \vec{E}_{i,j}=\left(\frac{\varphi_{i+1,j}-\varphi_{i-1,j}}{2h_x},\frac{\varphi_{i,j+1}-\varphi_{i,j-1}}{2h_y}\right)
+\end{align}
+其中$\left\{\varphi_{i,j}|0\leq i\leq m-1,0\leq j\leq n-1\right\}$，$h_x,h_y$分别为$x$方向和$y$方向上的网格精度，利用以下代码可以在Python中实现此功能，其中Ex和Ey为网格矩阵(xx,yy)的函数，所有是空间位置函数的变量（例如Ex）的行标号用于表示$y$轴坐标，列标号用于表示$x$轴坐标。
+\begin{lstlisting}
+import numpy as np
+
+d = np.array([1e-3, 1e-3])  # [y,x]
+x = np.arange(xMin, xMax+d[1], d[1])
+y = np.arange(yMin, yMax+d[0], d[0])
+
+xx, yy = np.meshgrid(x, y)
+Ex, Ey = Function(xx, yy)
+Exy = np.stack((Ey, Ex), axis=2)
+rho1 = (Exy[1:-1, 2:, 1]-Exy[1:-1, :-2, 1])/2/d[1]*epsilon0
+rho2 = (Exy[2:, 1:-1, 0]-Exy[:-2, 1:-1, 0])/2/d[0]*epsilon0
+rho = rho1+rho2
+\end{lstlisting}
+
+\section{结果}
+给予电场一正余弦分布，
+\begin{align}
+    E=-\pi\cos(\pi x)\sin(\pi y)\vec{e_x}+\pi\sin(\pi x)\cos(\pi y)\vec{e_y}
+\end{align}
+根据高斯定理$\nabla \cdot E = \rho / \varepsilon$，设$\varepsilon=1$，则可以得到电荷分布的解析解，
+\begin{align}
+    \rho=2\pi^2 \sin(\pi x)\sin(\pi y)
+\end{align}
+
+利用Python编写上述的求解方法，对此问题进行求解，设置求解区域为$S=\left\{(x,y)|-1\leq x\leq 1,-1\leq y\leq 1\right\}$的正方形区域，在两个维度上的网格精度均为$10^{-3}$，即求解区域的网格大小为$2000\times 2000$。该模型的数值计算结果以及误差如图\ref{F1}所示，由误差图可以看出计算精度已经达到了四位有效数字，在结果中数值越大的区域其误差也越大，根据三点中心差分公式，其误差来源可以认为是被忽略掉了的二阶小量$O(x^2)\sim (h_x^2+h_y^2)\pi^3 \sim 10^{-5}$，粗略估计由方法所带来的误差与实际计算的误差相符。
+\begin{figure}
+    \begin{center}
+        \includegraphics[width=17cm]{e2q.png}
+    \end{center}
+    \qquad 左图为数值计算结果，第一象限与第三象限分别有一个波峰，波谷存在于第二和第四象限内；右图为与解析解对照的前向误差图，用灰度表示误差的大小，颜色约浅表示误差越大，衍射越深表示误差越小。
+    \caption{正余弦电场分布的数值计算结果及误差图}
+    \label{F1}
+\end{figure}
+
+\part{单粒子在均匀电磁场中的运动}
+
+\section{方法}
+考虑带电量为$Q$，质量为$m$的带电粒子在电磁场中的运动，其在电磁场中的运动方程为，
+\begin{align}
+    m\vec{a}=q \vec{v} \times \vec{B}+q \vec{E}
+\end{align}
+粒子运动的位移可以表示为其运动速度的积分，利用\textbf{梯形法则}可以写作，
+
+\begin{minipage}[c]{0.5\linewidth}
+    \begin{align}
+        \vec{r}=\int_{t0}^{t1} \vec{v} \, \mathrm{d}t&=\sum_i \frac{\mathrm{d}t}{2}[v(t_i)+v(t_{i+1})]\\
+        &=\sum_i v(t_i)\mathrm{d}t +\frac{1}{2} v'(t_i) \mathrm{d}t^2\\
+        &=\sum_i v_i \mathrm{d}t +\frac{1}{2} a_i \mathrm{d}t^2
+    \end{align}
+\end{minipage}
+\begin{minipage}[c]{0.4\linewidth}
+    \includegraphics[width=7cm]{e.pdf}
+\end{minipage}
+
+利用以下代码可以在python中实现此功能，所有的矢量的三个分量按照(x,y,z)的顺序排列，其中np.cross函数表示向量的叉乘。
+\begin{lstlisting}
+    import numpy as np
+    
+    E = np.array([0., 0., 0.])  # 电场强度
+    B = np.array([0., 0., 1.])  # 磁感应强度
+    Q = 1  # 电荷量
+    m = 1  # 质量
+    r0 = np.array([-1., 0., 0.])  # 初始位移
+    v0 = np.array([0., 1., 0.])  # 初始速度
+    dt = 1e-3  # 时间精度
+    T = 20*np.pi  # 求解时长
+    tt = np.arange(0, T+dt, dt)
+    
+    r = np.array([r0])
+    v = np.array([v0])
+    for t in tt[1:]:
+        a = (Q*E+Q*np.cross(v, B))/m
+        dr = v[-1]*dt+(a*dt**2)/2
+        dv = a*dt
+        r = np.row_stack((r, r[-1]+dr))  # 更新一个位置，并连接到位置数组的最后一行之后
+        v = np.row_stack((v, v[-1]+dv))  # 更新一个速度，并连接到速度数组的最后一行之后
+    \end{lstlisting}
+
+\section{结果}
+
+\subsection{静磁场}
+首先考虑只存在静磁场，不存在静电场的情况，令$B=(0,0,1),r_0=(-1,0,0),v_0=(0,1,0)$，时间步长$\mathrm{d}t=10^-3$，时长$T=2\pi$，进行数值求解，粒子的运动轨迹如图\ref{F2}所示，可以看到粒子在绕坐标原点做圆周运动，该问题具有解析解，
+\begin{align}
+    \vec{r}=(-\cost,\sint)
+\end{align}
+用数值求解
+\begin{figure}
+    \subfigure[$2\pi$时间内粒子的运动轨迹]{\includegraphics[width=8.2cm]{B1.pdf}}
+    \subfigure[$2\pi$时间内的数值计算误差]{\includegraphics[width=8.2cm]{B1e.pdf}}
+    \\
+    \subfigure[$20\pi$时间内粒子的运动轨迹]{\includegraphics[width=8.2cm]{B2.pdf}}
+    \subfigure[$20\pi$时间内的数值计算误差]{\includegraphics[width=8.2cm]{B2e.pdf}}
+    \caption{只存在磁场时的数值计算结果}
+    \label{F2}
+\end{figure}
+\end{document}
